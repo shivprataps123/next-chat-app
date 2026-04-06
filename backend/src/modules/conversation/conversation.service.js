@@ -31,18 +31,25 @@ export const getUserConversations = async (userId) => {
     return conversations
 }
 
-export const createUserConversation = async (userId, userIds, isGroup = false) => {
+export const createUserConversation = async (userId, userIds, isGroup = false, groupName = null) => {
     const allUsers = [...new Set([userId, ...userIds])];
 
     return await prisma.conversation.create({
         data: {
             isGroup,
+            name: isGroup ? groupName : null,
             users: {
                 connect: allUsers.map((id) => ({ id })),
             }
         },
         include: {
-            users: true
+            users: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                }
+            }
         }
     })
 }

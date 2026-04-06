@@ -15,9 +15,9 @@ export const getConversations = async (req, res, next) => {
 
 export const createConversation = async (req, res, next) => {
     try {
-        const { userIds, isGroup } = req.body
+        const { userIds, isGroup, name } = req.body
 
-        const conversation = await createUserConversation(req.userId, userIds, isGroup)
+        const conversation = await createUserConversation(req.userId, userIds, isGroup, name)
         res.status(201).json({
             success: true,
             message: "Conversation created successfully",

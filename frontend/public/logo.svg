@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="chatGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <circle cx="60" cy="60" r="55" fill="url(#chatGradient)"/>
+  <path d="M40 45 C40 38 46 32 55 32 L65 32 C74 32 80 38 80 45 L80 55 C80 62 74 68 65 68 L55 68 C50 68 46 65 44 61 L40 61 L44 75 C46 71 50 68 55 68 L65 68 C74 68 80 62 80 55 L80 45 C80 38 74 32 65 32 L55 32 C46 32 40 38 40 45Z" fill="white"/>
+  <circle cx="52" cy="50" r="4" fill="#6366f1"/>
+  <circle cx="64" cy="50" r="4" fill="#6366f1"/>
+  <circle cx="76" cy="50" r="4" fill="#6366f1"/>
+  <path d="M48 58 Q52 62 56 58" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M60 62 Q64 66 68 62" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>
