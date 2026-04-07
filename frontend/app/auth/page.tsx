@@ -40,7 +40,6 @@ export default function AuthPage() {
           email,
           password,
         });
-        console.log(response)
         if (response.data.success) {
           localStorage.setItem("token", response.data.data.token || "");
           localStorage.setItem("user", JSON.stringify(response.data.data.rest));

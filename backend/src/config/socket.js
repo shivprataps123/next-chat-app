@@ -3,6 +3,7 @@ import AppError from "../utils/AppError.js";
 import { markMessageAsSeen } from "../modules/message/message.service.js";
 
 let io;
+const onlineUsers = new Map();
 
 export const initSocket = (server) => {
     io = new Server(server, {
@@ -12,45 +13,38 @@ export const initSocket = (server) => {
     });
 
     io.on("connection", (socket) => {
-        console.log("🔥 User connected:", socket.id);
 
-        const onlineUsers = new Map();
+        socket.on("user_connected", (userId) => {
+            onlineUsers.set(userId, socket.id);
+            io.emit("online_users", Array.from(onlineUsers.keys()));
+        });
 
-        io.on("connection", (socket) => {
-            socket.on("user_connected", (userId) => {
-                onlineUsers.set(userId, socket.id);
-
-                io.emit("online_users", Array.from(onlineUsers.keys()));
-            });
-
-            socket.on("disconnect", () => {
-                for (let [userId, sockId] of onlineUsers) {
-                    if (sockId === socket.id) {
-                        onlineUsers.delete(userId);
-                        break;
-                    }
+        socket.on("disconnect", () => {
+            for (let [userId, sockId] of onlineUsers) {
+                if (sockId === socket.id) {
+                    onlineUsers.delete(userId);
+                    break;
                 }
-
-                io.emit("online_users", Array.from(onlineUsers.keys()));
-            });
+            }
+            io.emit("online_users", Array.from(onlineUsers.keys()));
         });
 
         socket.on("send_message", (data) => {
-            const { conversationId, receiverId } = data;
+            const { conversationId, receiverId, senderId, message } = data;
 
-            // send to room
-            io.to(conversationId).emit("receive_message", data);
+            if (message) {
+                io.to(conversationId).emit("receive_message", message);
+            }
 
-            // 🔔 send notification separately
-            const receiverSocket = onlineUsers.get(receiverId);
+            const receiverSocketId = onlineUsers.get(receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("receive_message", message);
 
-            if (receiverSocket) {
-                io.to(receiverSocket).emit("new_notification", {
-                    message: data.content,
+                io.to(receiverSocketId).emit("new_notification", {
+                    message: message?.content,
                 });
             }
         });
-
 
         socket.on("message_delivered", ({ messageId }) => {
             io.emit("message_status_update", {
@@ -61,38 +55,25 @@ export const initSocket = (server) => {
 
         socket.on("message_seen", async ({ messageId }) => {
             try {
-                // ✅ update DB
-                const updatedMessage = await markMessageAsSeen(messageId);
-
-                // ✅ notify others
+                await markMessageAsSeen(messageId);
                 io.emit("message_status_update", {
                     messageId,
                     status: "seen",
                 });
-
             } catch (error) {
-                console.error("Error updating message status:", error);
             }
         });
 
-        // ✅ JOIN ROOM
         socket.on("join_conversation", (conversationId) => {
             socket.join(conversationId);
-            console.log(`User ${socket.id} joined room ${conversationId}`);
         });
 
         socket.on("typing", ({ conversationId, userName }) => {
-            socket.to(conversationId).emit("user_typing", {
-                userName,
-            });
+            socket.to(conversationId).emit("user_typing", { userName });
         });
 
         socket.on("stop_typing", (conversationId) => {
             socket.to(conversationId).emit("user_stop_typing");
-        });
-
-        socket.on("disconnect", () => {
-            console.log("❌ User disconnected:", socket.id);
         });
     });
 

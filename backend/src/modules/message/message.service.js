@@ -65,7 +65,9 @@ export const sendMessage = async (userId, conversationId, content) => {
     //Emit socket event
     const io = getIO();
 
-    io.to(conversationId).emit("receive_message", message);
+
+    // Broadcast to all connected clients, frontend will filter
+    io.emit("receive_message", message);
 
     return message;
 };

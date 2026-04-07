@@ -57,7 +57,12 @@ export default function ChatPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const socketRef = useRef<Socket | null>(null);
+    const selectedConversationRef = useRef<Conversation | null>(null);
     const router = useRouter();
+
+    useEffect(() => {
+        selectedConversationRef.current = selectedConversation;
+    }, [selectedConversation]);
 
     useEffect(() => {
         const user = localStorage.getItem("user");
@@ -93,12 +98,19 @@ export default function ChatPage() {
 
     const initSocket = (userId: string) => {
         const socket = io(SOCKET_URL, {
-            transports: ["websocket"],
+            transports: ["websocket", "polling"],
+            reconnection: true,
+            reconnectionAttempts: 5,
         });
 
         socket.on("connect", () => {
-            console.log("Socket connected:", socket.id);
             socket.emit("user_connected", userId);
+        });
+
+        socket.on("disconnect", () => {
+        });
+
+        socket.on("connect_error", (error) => {
         });
 
         socket.on("online_users", (users: string[]) => {
@@ -106,18 +118,23 @@ export default function ChatPage() {
         });
 
         socket.on("receive_message", (message: Message) => {
-            if (selectedConversation?.id === message.conversationId) {
-                setMessages((prev) => {
-                    if (prev.find(m => m.id === message.id)) return prev;
-                    return [...prev, message];
-                });
-                
+
+            if (!message.conversationId) {
+                return;
+            }
+
+            const messageConvId = String(message.conversationId);
+            const currentSelected = selectedConversationRef.current;
+
+            // Only add if it's the selected conversation
+            if (currentSelected && String(currentSelected.id) === messageConvId) {
+                setMessages((prev) => [...prev, message]);
                 socket.emit("message_seen", { messageId: message.id });
             }
-            
+
             setConversations(prev => {
                 const updated = prev.map(conv => {
-                    if (conv.id === message.conversationId) {
+                    if (String(conv.id) === messageConvId) {
                         return { ...conv, updatedAt: message.createdAt };
                     }
                     return conv;
@@ -127,13 +144,19 @@ export default function ChatPage() {
         });
 
         socket.on("message_status_update", ({ messageId, status }: { messageId: string; status: string }) => {
-            setMessages(prev => prev.map(msg => 
+            setMessages(prev => prev.map(msg =>
                 msg.id === messageId ? { ...msg, status } : msg
             ));
         });
 
         socket.on("user_typing", ({ userName }: { userName: string }) => {
             setTypingUser(userName);
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+            typingTimeoutRef.current = setTimeout(() => {
+                setTypingUser(null);
+            }, 3000);
         });
 
         socket.on("user_stop_typing", () => {
@@ -157,13 +180,21 @@ export default function ChatPage() {
             });
 
             if (response.data.success && response.data.data.length > 0) {
-                setConversations(response.data.data);
-                setSelectedConversation(response.data.data[0]);
+                const convs = response.data.data;
+                setConversations(convs);
+                const firstConv = convs[0];
+                setSelectedConversation(firstConv);
+                selectedConversationRef.current = firstConv;
+
+                // Also join the conversation room immediately
+                if (socketRef.current) {
+                    socketRef.current.emit("join_conversation", firstConv.id);
+                    fetchMessages(firstConv.id);
+                }
             } else {
                 setConversations([]);
             }
         } catch (error) {
-            console.error("Error fetching conversations:", error);
             setConversations([]);
         } finally {
             setLoading(false);
@@ -184,7 +215,6 @@ export default function ChatPage() {
                 setMessages(response.data.data);
             }
         } catch (error) {
-            console.error("Error fetching messages:", error);
             setMessages([]);
         }
     };
@@ -200,7 +230,6 @@ export default function ChatPage() {
                 setAllUsers(response.data.data);
             }
         } catch (error) {
-            console.error("Error fetching users:", error);
         }
     };
 
@@ -213,8 +242,8 @@ export default function ChatPage() {
     };
 
     const toggleUserSelection = (userId: string) => {
-        setSelectedUsers(prev => 
-            prev.includes(userId) 
+        setSelectedUsers(prev =>
+            prev.includes(userId)
                 ? prev.filter(id => id !== userId)
                 : [...prev, userId]
         );
@@ -225,8 +254,8 @@ export default function ChatPage() {
 
         try {
             const token = localStorage.getItem("token");
-            
-            const payload = isGroup 
+
+            const payload = isGroup
                 ? { userIds: selectedUsers, isGroup: true, name: groupName }
                 : { userIds: selectedUsers, isGroup: false };
 
@@ -243,13 +272,12 @@ export default function ChatPage() {
                 await fetchConversations();
                 const newConv = response.data.data;
                 setSelectedConversation(newConv);
-                
+
                 if (socketRef.current) {
                     socketRef.current.emit("join_conversation", newConv.id);
                 }
             }
         } catch (error) {
-            console.error("Error creating conversation:", error);
         }
     };
 
@@ -275,19 +303,12 @@ export default function ChatPage() {
                 const message = response.data.data;
                 setMessages((prev) => [...prev, message]);
                 setNewMessage("");
-                
+
                 if (socketRef.current) {
-                    socketRef.current.emit("send_message", {
-                        conversationId: selectedConversation.id,
-                        content: message.content,
-                        senderId: currentUser?.id,
-                        receiverId: getOtherUser(selectedConversation)?.id,
-                    });
                     socketRef.current.emit("stop_typing", selectedConversation.id);
                 }
             }
         } catch (error) {
-            console.error("Error sending message:", error);
         } finally {
             setSending(false);
             setIsTyping(false);
@@ -441,17 +462,17 @@ export default function ChatPage() {
                         <div className="chat-header">
                             <div className="chat-header-user">
                                 <div className="avatar">
-                                    {selectedConversation.isGroup 
-                                        ? "G" 
+                                    {selectedConversation.isGroup
+                                        ? "G"
                                         : getOtherUser(selectedConversation)?.name?.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="header-user-info">
                                     <h2>{getConversationName(selectedConversation)}</h2>
                                     <span className="status">
-                                        {selectedConversation.isGroup 
+                                        {selectedConversation.isGroup
                                             ? `${selectedConversation.users.length} members`
-                                            : isUserOnline(getOtherUser(selectedConversation)?.id || "") 
-                                                ? "Online" 
+                                            : isUserOnline(getOtherUser(selectedConversation)?.id || "")
+                                                ? "Online"
                                                 : "Offline"}
                                     </span>
                                 </div>
@@ -476,7 +497,7 @@ export default function ChatPage() {
                                     const showDate =
                                         index === 0 ||
                                         new Date(message.createdAt).toDateString() !==
-                                            new Date(messages[index - 1].createdAt).toDateString();
+                                        new Date(messages[index - 1].createdAt).toDateString();
                                     return (
                                         <div key={message.id}>
                                             {showDate && (
@@ -549,13 +570,13 @@ export default function ChatPage() {
                         </div>
 
                         <div className="chat-type-toggle">
-                            <button 
+                            <button
                                 className={`toggle-btn ${!isGroup ? "active" : ""}`}
                                 onClick={() => setIsGroup(false)}
                             >
                                 Single User
                             </button>
-                            <button 
+                            <button
                                 className={`toggle-btn ${isGroup ? "active" : ""}`}
                                 onClick={() => setIsGroup(true)}
                             >
@@ -597,7 +618,7 @@ export default function ChatPage() {
                             ))}
                         </div>
 
-                        <button 
+                        <button
                             className="create-btn"
                             onClick={createConversation}
                             disabled={selectedUsers.length === 0 || (isGroup && !groupName.trim())}
