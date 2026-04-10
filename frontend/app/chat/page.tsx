@@ -492,12 +492,16 @@ export default function ChatPage() {
                                     <p className="no-messages-hint">Send a message to start the conversation</p>
                                 </div>
                             ) : (
-                                messages.map((message, index) => {
+                                messages.map((message, idx) => {
                                     const isOwn = message.senderId === currentUser?.id;
-                                    const showDate =
-                                        index === 0 ||
-                                        new Date(message.createdAt).toDateString() !==
-                                        new Date(messages[index - 1].createdAt).toDateString();
+                                    const prevMessage = idx > 0 ? messages[idx - 1] : null;
+                                    const showDate = !prevMessage || 
+                                        new Date(message.createdAt).toDateString() !== 
+                                        new Date(prevMessage.createdAt).toDateString();
+                                    
+                                    const showSender = selectedConversation.isGroup && !isOwn && 
+                                        (!prevMessage || prevMessage.senderId !== message.senderId);
+                                    
                                     return (
                                         <div key={message.id}>
                                             {showDate && (
@@ -505,18 +509,20 @@ export default function ChatPage() {
                                                     <span>{formatDate(message.createdAt)}</span>
                                                 </div>
                                             )}
-                                            <div className={`message ${isOwn ? "own" : "other"}`}>
-                                                {selectedConversation.isGroup && !isOwn && (
-                                                    <div className="message-sender">{message.sender.name}</div>
+                                            <div className={`message-wrapper ${isOwn ? 'own' : 'other'}`}>
+                                                {showSender && (
+                                                    <div className="message-sender-name">{message.sender.name}</div>
                                                 )}
-                                                <div className="message-content">{message.content}</div>
-                                                <div className="message-meta">
-                                                    <div className="message-time">{formatTime(message.createdAt)}</div>
-                                                    {isOwn && message.status && (
-                                                        <span className="message-status">
-                                                            {message.status === "seen" ? "✓✓" : message.status === "delivered" ? "✓✓" : "✓"}
-                                                        </span>
-                                                    )}
+                                                <div className="message-bubble">
+                                                    <div className="message-text">{message.content}</div>
+                                                    <div className="message-info">
+                                                        <span className="message-time">{formatTime(message.createdAt)}</span>
+                                                        {isOwn && message.status && (
+                                                            <span className="message-status">
+                                                                {message.status === "seen" ? "✓✓" : message.status === "delivered" ? "✓✓" : "✓"}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -642,7 +648,7 @@ export default function ChatPage() {
                     width: 40px;
                     height: 40px;
                     border: 4px solid #e5e7eb;
-                    border-top-color: #6366f1;
+                    border-top-color: #00a884;
                     border-radius: 50%;
                     animation: spin 1s linear infinite;
                 }
@@ -654,23 +660,24 @@ export default function ChatPage() {
                 .chat-layout {
                     display: flex;
                     height: 100vh;
-                    background: #f5f5f5;
+                    background: #ffffff;
                 }
 
                 .sidebar {
-                    width: 320px;
-                    background: white;
+                    width: 400px;
+                    background: #ffffff;
                     display: flex;
                     flex-direction: column;
-                    border-right: 1px solid #e5e7eb;
+                    border-right: 1px solid #e7e7e7;
                 }
 
                 .sidebar-header {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    padding: 1rem;
-                    border-bottom: 1px solid #e5e7eb;
+                    padding: 10px 16px;
+                    background: #f0f2f5;
+                    height: 60px;
                 }
 
                 .logo-section {
@@ -682,7 +689,7 @@ export default function ChatPage() {
                 .logo-text {
                     font-size: 1.25rem;
                     font-weight: 700;
-                    color: #6366f1;
+                    color: #00a884;
                 }
 
                 .logout-btn {
@@ -690,31 +697,34 @@ export default function ChatPage() {
                     border: none;
                     font-size: 1.25rem;
                     cursor: pointer;
-                    padding: 0.5rem;
-                    border-radius: 8px;
+                    padding: 8px;
+                    border-radius: 50%;
                     transition: background 0.2s;
+                    color: #54656f;
                 }
 
                 .logout-btn:hover {
-                    background: #f3f4f6;
+                    background: #e5e7eb;
                 }
 
                 .new-chat-btn {
-                    margin: 1rem;
-                    padding: 0.75rem 1rem;
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    margin: 8px 16px;
+                    padding: 12px 16px;
+                    background: #00a884;
                     color: white;
                     border: none;
-                    border-radius: 12px;
+                    border-radius: 24px;
                     font-weight: 600;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
+                    justify-content: center;
                     gap: 0.5rem;
                     font-size: 0.95rem;
                 }
 
                 .new-chat-btn:hover {
+                    background: #00a884;
                     opacity: 0.9;
                 }
 
@@ -723,33 +733,41 @@ export default function ChatPage() {
                 }
 
                 .search-section {
-                    padding: 0 1rem 1rem;
+                    padding: 0 16px 8px;
                 }
 
                 .search-input-wrapper {
                     display: flex;
                     align-items: center;
-                    background: #f3f4f6;
-                    border-radius: 12px;
-                    padding: 0 1rem;
+                    background: #ffffff;
+                    border: 1px solid #e7e7e7;
+                    border-radius: 24px;
+                    padding: 0 16px;
                 }
 
                 .search-icon {
                     font-size: 1rem;
+                    color: #667781;
                 }
 
                 .search-input {
                     flex: 1;
                     border: none;
                     background: transparent;
-                    padding: 0.75rem;
+                    padding: 10px;
                     outline: none;
                     font-size: 0.9rem;
+                    color: #111b21;
+                }
+
+                .search-input::placeholder {
+                    color: #667781;
                 }
 
                 .conversations-list {
                     flex: 1;
                     overflow-y: auto;
+                    background: #ffffff;
                 }
 
                 .conversation-item {
@@ -773,7 +791,7 @@ export default function ChatPage() {
                     width: 48px;
                     height: 48px;
                     border-radius: 50%;
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    background: linear-gradient(135deg, #00a884, #00a884);
                     color: white;
                     display: flex;
                     align-items: center;
@@ -824,7 +842,7 @@ export default function ChatPage() {
                 }
 
                 .group-badge {
-                    background: #6366f1;
+                    background: #00a884;
                     color: white;
                     font-size: 0.65rem;
                     padding: 0.15rem 0.4rem;
@@ -851,16 +869,16 @@ export default function ChatPage() {
                     flex: 1;
                     display: flex;
                     flex-direction: column;
-                    background: #fafafa;
+                    background: #efe7dd;
                 }
 
                 .chat-header {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    padding: 1rem 1.5rem;
-                    background: white;
-                    border-bottom: 1px solid #e5e7eb;
+                    padding: 10px 16px;
+                    background: #008069;
+                    height: 60px;
                 }
 
                 .chat-header-user {
@@ -873,41 +891,39 @@ export default function ChatPage() {
                     font-size: 1rem;
                     font-weight: 600;
                     margin: 0;
+                    color: #ffffff;
                 }
 
                 .status {
                     font-size: 0.8rem;
-                    color: #10b981;
+                    color: #d1d5db;
                 }
 
                 .chat-header-actions {
                     display: flex;
-                    gap: 0.5rem;
+                    gap: 4px;
                 }
 
                 .header-btn {
                     background: none;
                     border: none;
-                    font-size: 1.1rem;
-                    padding: 0.5rem;
-                    border-radius: 8px;
+                    font-size: 1.25rem;
+                    padding: 8px;
+                    border-radius: 50%;
                     cursor: pointer;
                     transition: background 0.2s;
+                    color: #ffffff;
                 }
 
                 .header-btn:hover {
-                    background: #f3f4f6;
+                    background: rgba(255, 255, 255, 0.1);
                 }
 
                 .messages-container {
-                    flex: 1;
-                    overflow-y: auto;
-                    padding: 1rem;
-                    display: flex;
-                    flex-direction: column;
+                    background: #f3f4f6;
                 }
 
-                .no-messages {
+                .chat-header {
                     flex: 1;
                     display: flex;
                     flex-direction: column;
@@ -941,10 +957,85 @@ export default function ChatPage() {
                     color: #6b7280;
                 }
 
-                .message {
-                    max-width: 70%;
-                    margin-bottom: 0.5rem;
-                    animation: slideIn 0.2s ease-out;
+                .messages-container {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                }
+
+                .message-wrapper {
+                    display: flex;
+                    margin-bottom: 2px;
+                    max-width: 80%;
+                }
+
+                .message-wrapper.other {
+                    align-self: flex-start;
+                }
+
+                .message-wrapper.own {
+                    align-self: flex-end;
+                    margin-left: auto;
+                }
+
+                .message-sender-name {
+                    font-size: 0.7rem;
+                    color: #667781;
+                    font-weight: 600;
+                    margin-bottom: 2px;
+                    margin-left: 12px;
+                }
+
+                .message-bubble {
+                    padding: 8px 12px;
+                    border-radius: 7.5px;
+                    max-width: 100%;
+                    position: relative;
+                    min-width: 120px;
+                }
+
+                .message-wrapper.other .message-bubble {
+                    background: #ffffff;
+                    border-top-left-radius: 0;
+                    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+                }
+
+                .message-wrapper.own .message-bubble {
+                    background: #d9fdd3;
+                    border-top-right-radius: 0;
+                    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+                }
+
+                .message-text {
+                    word-wrap: break-word;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    color: #111b21;
+                }
+
+                .message-wrapper.own .message-text {
+                    color: #111b21;
+                }
+
+                .message-info {
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                    gap: 4px;
+                    margin-top: 4px;
+                }
+
+                .message-time {
+                    font-size: 0.65rem;
+                    color: #667781;
+                }
+
+                .message-status {
+                    font-size: 0.65rem;
+                    color: #667781;
                 }
 
                 @keyframes slideIn {
@@ -958,115 +1049,62 @@ export default function ChatPage() {
                     }
                 }
 
-                .message.other {
-                    align-self: flex-start;
-                }
-
-                .message.own {
-                    align-self: flex-end;
-                }
-
-                .message-content {
-                    padding: 0.75rem 1rem;
-                    border-radius: 18px;
-                    line-height: 1.4;
-                }
-
-                .message-sender {
-                    font-size: 0.75rem;
-                    color: #6b7280;
-                    margin-bottom: 0.25rem;
-                }
-
-                .message.other .message-content {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-bottom-left-radius: 4px;
-                }
-
-                .message.own .message-content {
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                    color: white;
-                    border-bottom-right-radius: 4px;
-                }
-
-                .message-meta {
-                    display: flex;
-                    align-items: center;
-                    gap: 0.25rem;
-                    margin-top: 0.25rem;
-                }
-
-                .message-time {
-                    font-size: 0.7rem;
-                    color: #9ca3af;
-                }
-
-                .message.own .message-meta {
-                    justify-content: flex-end;
-                }
-
-                .message-status {
-                    font-size: 0.7rem;
-                    color: #9ca3af;
-                }
-
-                .typing-indicator {
-                    padding: 0.5rem 1rem;
-                    font-size: 0.85rem;
-                    color: #6b7280;
-                    font-style: italic;
-                }
-
                 .message-input-area {
                     display: flex;
                     align-items: center;
-                    gap: 0.75rem;
-                    padding: 1rem;
-                    background: white;
-                    border-top: 1px solid #e5e7eb;
+                    padding: 8px 16px;
+                    background: #f0f2f5;
                 }
 
-                .attach-btn, .send-btn {
+                .attach-btn {
                     background: none;
                     border: none;
-                    font-size: 1.25rem;
-                    padding: 0.5rem;
+                    font-size: 1.5rem;
+                    padding: 8px;
                     cursor: pointer;
+                    color: #667781;
+                    margin-right: 8px;
+                }
+
+                .attach-btn:hover {
+                    background: #e5e7eb;
                     border-radius: 50%;
-                    transition: background 0.2s;
-                }
-
-                .attach-btn:hover, .send-btn:hover {
-                    background: #f3f4f6;
-                }
-
-                .send-btn {
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                    color: white;
-                    width: 40px;
-                    height: 40px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                .send-btn:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
                 }
 
                 .message-input {
                     flex: 1;
-                    padding: 0.75rem 1rem;
-                    border: 1px solid #e5e7eb;
+                    padding: 10px 16px;
+                    border: none;
                     border-radius: 24px;
                     outline: none;
                     font-size: 0.95rem;
+                    color: #1e293b;
+                    background: #ffffff;
                 }
 
-                .message-input:focus {
-                    border-color: #6366f1;
+                .message-input::placeholder {
+                    color: #667781;
+                }
+
+                .send-btn {
+                    background: #00a884;
+                    border: none;
+                    font-size: 1.25rem;
+                    padding: 10px;
+                    cursor: pointer;
+                    border-radius: 50%;
+                    margin-left: 8px;
+                    color: white;
+                }
+
+                .send-btn:disabled {
+                    background: #e5e7eb;
+                    color: #9ca3af;
+                }
+
+                .send-btn:hover:not(:disabled) {
+                    background: #00a884;
+                    opacity: 0.9;
                 }
 
                 .no-chat-selected {
@@ -1143,9 +1181,9 @@ export default function ChatPage() {
                 }
 
                 .toggle-btn.active {
-                    border-color: #6366f1;
+                    border-color: #00a884;
                     background: #eef2ff;
-                    color: #6366f1;
+                    color: #00a884;
                 }
 
                 .form-group {
@@ -1169,7 +1207,7 @@ export default function ChatPage() {
                 }
 
                 .form-group input:focus {
-                    border-color: #6366f1;
+                    border-color: #00a884;
                 }
 
                 .users-list {
@@ -1226,19 +1264,19 @@ export default function ChatPage() {
                     align-items: center;
                     justify-content: center;
                     font-size: 0.8rem;
-                    color: #6366f1;
+                    color: #00a884;
                 }
 
                 .user-item.selected .checkbox {
-                    background: #6366f1;
-                    border-color: #6366f1;
+                    background: #00a884;
+                    border-color: #00a884;
                     color: white;
                 }
 
                 .create-btn {
                     margin: 1rem 1.5rem 1.5rem;
                     padding: 1rem;
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    background: linear-gradient(135deg, #00a884, #00a884);
                     color: white;
                     border: none;
                     border-radius: 12px;
